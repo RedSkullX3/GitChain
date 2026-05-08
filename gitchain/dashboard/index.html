@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitChain — Contribution Verifier</title>
+  <style>
+    /* -----------------------------------------------------------------------
+       Base
+    ----------------------------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --accent:  #4a9eff;
+      --green:   #3fb950;
+      --red:     #f85149;
+      --yellow:  #d29922;
+      --text:    #c9d1d9;
+      --muted:   #8b949e;
+      --mono:    'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
+    h4 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; color: var(--muted); }
+    .mono { font-family: var(--mono); font-size: 12px; }
+    .small { font-size: 11px; }
+    .muted { color: var(--muted); }
+    .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
+    .loading { color: var(--muted); padding: 20px; text-align: center; }
+    .error { color: var(--red); padding: 12px; border: 1px solid var(--red); border-radius: 6px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot.green { background: var(--green); }
+
+    /* -----------------------------------------------------------------------
+       Layout
+    ----------------------------------------------------------------------- */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 24px;
+      height: 48px;
+    }
+    .logo { font-weight: 700; font-size: 16px; color: var(--accent); }
+    .logo span { color: var(--text); }
+    nav { display: flex; gap: 4px; }
+    nav button {
+      background: none; border: none; color: var(--muted);
+      padding: 6px 14px; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-family: inherit;
+    }
+    nav button:hover { background: var(--border); color: var(--text); }
+    nav button.active { background: var(--border); color: var(--text); font-weight: 600; }
+    .api-url { margin-left: auto; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+    main { padding: 20px 24px; max-width: 1400px; }
+
+    /* -----------------------------------------------------------------------
+       Cards + Stat tiles
+    ----------------------------------------------------------------------- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .stat-card.alert  { border-color: var(--red); }
+    .stat-card.alert .value { color: var(--red); }
+
+    /* -----------------------------------------------------------------------
+       Tables
+    ----------------------------------------------------------------------- */
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* -----------------------------------------------------------------------
+       Badges
+    ----------------------------------------------------------------------- */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      background: var(--border);
+      color: var(--muted);
+    }
+    .badge.verified { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .badge.alert    { background: rgba(248,81,73,.15);  color: var(--red);   border: 1px solid rgba(248,81,73,.3); }
+
+    /* -----------------------------------------------------------------------
+       WF01 Dashboard
+    ----------------------------------------------------------------------- */
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+    .block-pill {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 10px; border-bottom: 1px solid var(--border);
+      cursor: pointer; font-size: 13px;
+    }
+    .block-pill:hover { background: rgba(255,255,255,0.03); }
+    .block-idx  { color: var(--accent); font-weight: 600; font-family: var(--mono); min-width: 32px; }
+    .block-hash { color: var(--muted); flex: 1; }
+    .block-txs  { color: var(--muted); font-size: 11px; }
+    .block-time { color: var(--muted); font-size: 11px; }
+    .peer-entry { padding: 6px 0; font-size: 13px; font-family: var(--mono); }
+
+    /* -----------------------------------------------------------------------
+       WF02 Explorer
+    ----------------------------------------------------------------------- */
+    .explorer-layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+    .rail-item {
+      padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+      display: flex; gap: 10px; align-items: center;
+    }
+    .rail-item:hover    { background: rgba(255,255,255,0.03); }
+    .rail-item.selected { background: rgba(74,158,255,0.1); border-left: 2px solid var(--accent); }
+    .rail-idx  { color: var(--accent); font-weight: 600; min-width: 30px; }
+    .rail-hash { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+    .block-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .block-meta { margin-bottom: 16px; }
+    .meta-row { display: flex; gap: 16px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .meta-row > span:first-child { color: var(--muted); min-width: 90px; }
+    .tx-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+    .tx-row { display: flex; gap: 12px; padding: 3px 0; font-size: 13px; }
+    .tx-label { color: var(--muted); min-width: 80px; }
+
+    /* -----------------------------------------------------------------------
+       WF03 Verify
+    ----------------------------------------------------------------------- */
+    .verify-form { display: flex; gap: 10px; margin-bottom: 20px; }
+    .verify-form input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px; color: var(--text);
+      font-family: var(--mono); font-size: 13px;
+    }
+    .verify-form input:focus { outline: none; border-color: var(--accent); }
+    .verify-form button {
+      background: var(--accent); border: none; border-radius: 6px;
+      padding: 10px 20px; color: white; font-size: 13px;
+      cursor: pointer; font-weight: 600; font-family: inherit;
+    }
+    .verify-form button:hover { background: #3a8eef; }
+    .verify-card { border-radius: 8px; padding: 20px; }
+    .verify-card.verified  { background: rgba(63,185,80,.08);  border: 1px solid rgba(63,185,80,.3); }
+    .verify-card.not-found { background: rgba(248,81,73,.08);  border: 1px solid rgba(248,81,73,.3); }
+    .verify-status { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .verify-card.verified  .verify-status { color: var(--green); }
+    .verify-card.not-found .verify-status { color: var(--red); }
+    .verify-detail > div { display: flex; gap: 16px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .verify-detail > div > span:first-child { color: var(--muted); min-width: 100px; }
+    .verify-hint { margin-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .verify-message { color: var(--muted); margin-top: 8px; }
+
+    /* -----------------------------------------------------------------------
+       WF04 Contributors
+    ----------------------------------------------------------------------- */
+    .contributors-layout { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+    .contributor-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      cursor: pointer; font-size: 13px;
+    }
+    .contributor-row:hover    { background: rgba(255,255,255,0.03); }
+    .contributor-row.selected { background: rgba(74,158,255,0.08); border-left: 2px solid var(--accent); }
+    .rank         { color: var(--muted); min-width: 28px; font-size: 12px; }
+    .pubkey       { flex: 1; font-size: 12px; }
+    .repos        { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .commit-count { color: var(--accent); font-weight: 600; font-size: 12px; min-width: 60px; text-align: right; }
+    .activity-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .activity-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+    .detail-header { margin-bottom: 12px; }
+    .detail-header .mono { color: var(--muted); font-size: 11px; margin-top: 4px; word-break: break-all; }
+    .detail-stats { display: flex; gap: 20px; margin-bottom: 16px; }
+    .stat-mini { text-align: center; }
+    .stat-mini span  { display: block; font-size: 24px; font-weight: 700; color: var(--accent); }
+    .stat-mini label { font-size: 12px; color: var(--muted); }
+    .commit-entry {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .commit-entry .time { color: var(--muted); font-size: 11px; margin-left: auto; }
+
+    /* -----------------------------------------------------------------------
+       WF05 Network
+    ----------------------------------------------------------------------- */
+    .network-layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+    .network-svg { width: 100%; max-width: 480px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); }
+    .node-self  { fill: var(--accent); opacity: 0.9; }
+    .node-peer  { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+    .node-label { fill: var(--text); font-size: 9px; text-anchor: middle; font-family: var(--mono); }
+    .edge       { stroke: var(--accent); stroke-width: 1.5; opacity: 0.4; }
+    .net-stat   { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; gap: 12px; font-size: 13px; }
+    .net-stat label { color: var(--muted); min-width: 80px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Git<span>Chain</span></div>
+  <nav>
+    <button id="tab-dashboard"    class="active">Dashboard</button>
+    <button id="tab-explorer">Explorer</button>
+    <button id="tab-verify">Verify Commit</button>
+    <button id="tab-contributors">Contributors</button>
+    <button id="tab-network">Network</button>
+  </nav>
+  <div class="api-url" id="api-url-display"></div>
+</header>
+
+<main>
+
+  <!-- =====================================================================
+       WF01 — Dashboard
+  ====================================================================== -->
+  <div id="view-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="value" id="stat-blocks">—</div>
+        <div class="label">Blocks</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="stat-commits">—</div>
+        <div class="label">Commits Recorded</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="stat-nodes">—</div>
+        <div class="label">Nodes Online</div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div>
+        <div class="card">
+          <h2>Contribution Timeline</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Commit</th><th>Repo</th><th>Branch</th>
+                <th>Author</th><th>Time</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="timeline-body">
+              <tr><td colspan="6" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Recent Blocks</h2>
+          <div id="recent-blocks"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="card">
+          <h2>Connected Peers</h2>
+          <div id="peers-list"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       WF02 — Block Explorer
+  ====================================================================== -->
+  <div id="view-explorer" style="display:none">
+    <h2>Block Explorer</h2>
+    <div class="explorer-layout">
+      <div class="card" style="padding:0; overflow-y:auto; max-height:70vh;">
+        <div id="explorer-rail"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="card" id="block-detail">
+        <div class="empty">Select a block from the left rail</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       WF03 — Verify Commit
+  ====================================================================== -->
+  <div id="view-verify" style="display:none">
+    <h2>Verify Commit</h2>
+    <p class="muted" style="margin-bottom:16px">
+      Paste any git commit SHA to check whether it is permanently recorded on the GitChain.
+      A verified commit cannot have been deleted, backdated, or reassigned.
+    </p>
+    <div class="verify-form">
+      <input id="verify-input" type="text"
+             placeholder="Paste commit SHA (e.g. a1b2c3d4e5f6…)" spellcheck="false" />
+      <button id="verify-btn">Verify</button>
+    </div>
+    <div id="verify-result"></div>
+  </div>
+
+  <!-- =====================================================================
+       WF04 — Contributors
+  ====================================================================== -->
+  <div id="view-contributors" style="display:none">
+    <h2>Contributors</h2>
+    <div class="contributors-layout">
+      <div class="card" style="padding:0; overflow-y:auto; max-height:70vh;">
+        <div id="contributors-list"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="card" id="contributor-detail">
+        <div class="empty">Select a contributor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       WF05 — Network
+  ====================================================================== -->
+  <div id="view-network" style="display:none">
+    <h2>P2P Network</h2>
+    <div class="network-layout">
+      <div>
+        <div class="card" style="padding:12px;">
+          <div id="network-topology"><div class="loading">Loading…</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Node Status</h3>
+          <div id="network-stats"><div class="loading">Loading…</div></div>
+        </div>
+        <div class="card">
+          <h3>Message Protocol</h3>
+          <table>
+            <thead><tr><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">NEW_TRANSACTION</td><td>Broadcast unconfirmed commit</td></tr>
+              <tr><td class="mono">NEW_BLOCK</td>      <td>Broadcast mined block</td></tr>
+              <tr><td class="mono">GET_CHAIN</td>      <td>Request full chain</td></tr>
+              <tr><td class="mono">CHAIN_RESPONSE</td> <td>Send full chain</td></tr>
+              <tr><td class="mono">PING / PONG</td>    <td>Heartbeat</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Allow overriding API base URL via ?api=http://... query param
+  window.GITCHAIN_API = new URLSearchParams(location.search).get('api') || 'http://127.0.0.1:8000';
+  document.getElementById('api-url-display').textContent = window.GITCHAIN_API;
+</script>
+<script src="app.js"></script>
+</body>
+</html>

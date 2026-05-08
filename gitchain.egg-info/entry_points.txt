@@ -1,0 +1,2 @@
+[console_scripts]
+gitchain = gitchain.cli.gitchain:main
