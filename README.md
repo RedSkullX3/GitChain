@@ -1,24 +1,6 @@
 # GitChain — Decentralized Git Contribution Verifier
 
 GitChain is a permissionless blockchain where every `git push` is permanently recorded as a cryptographically signed transaction. It proves that a commit existed at a specific time and was authored by a specific developer — including the exact lines changed — even if someone later force-pushes or rewrites history on GitHub.
-
----
-
-DISCLAIMER: There is a small difference between a node that you as admin will install, if you have understood it clearly then the first/main node is required to be active in order for the whole thing to run, but if you wish for the GITHUB CI to push it directly to the second system as well which would solve the problem then you can run ngrok in the second system and copy the server link and add a GITHUB secret with the name GITCHAIN_NODE_URL_1 and also add another line (do not delete only add it below the normal one) to .github/workflows/gitchain.yml file which is uploaded to the github repository using gitchain, which is as follows,
-
-- name: Log commit to GitChain 2
-        run: node gitchain-submit.js
-        working-directory: gitchain/github-action
-        env:
-          GITCHAIN_PRIVATE_KEY: ${{ secrets.GITCHAIN_PRIVATE_KEY }}
-          GITCHAIN_NODE_URL:    ${{ secrets.GITCHAIN_NODE_URL_1 }}
-          GITHUB_SHA:           ${{ github.sha }}
-          GITHUB_ACTOR:         ${{ github.actor }}
-          GITHUB_REPOSITORY:    ${{ github.repository }}
-          GITHUB_REF_NAME:      ${{ github.ref_name }}
-
-This will sign using the same key but also send a direct transaction to the second system via ngrok.
-
 ---
 Sometimes the .github folder maybe hidden as any folder named like that is usually hidden in Linux based Distros.
 
@@ -26,6 +8,7 @@ Sometimes the .github folder maybe hidden as any folder named like that is usual
 (Linux users): If you are using some app like "Files" as explorer, you can press Ctrl+h to show all hidden files. 
 
 VS CODE should always show all files including the hidden one.
+---
 
 ## Requirements
 
@@ -267,6 +250,7 @@ GitChain/
 
 DISCLAIMER: There is a small difference between a node that you as admin will install, if you have understood it clearly then the first/main node is required to be active in order for the whole thing to run, but if you wish for the GITHUB CI to push it directly to the second system as well which would solve the problem then you can run ngrok in the second system and copy the server link and add a GITHUB secret with the name GITCHAIN_NODE_URL_1 and also add another line (do not delete only add it below the normal one) to .github/workflows/gitchain.yml file which is uploaded to the github repository using gitchain, which is as follows,
 
+```
 - name: Log commit to GitChain 2
         run: node gitchain-submit.js
         working-directory: gitchain/github-action
@@ -278,7 +262,8 @@ DISCLAIMER: There is a small difference between a node that you as admin will in
           GITHUB_REPOSITORY:    ${{ github.repository }}
           GITHUB_REF_NAME:      ${{ github.ref_name }}
 
-This will sign using the same key but also send a direct transaction to the second system via ngrok.
+```
+This will sign using the same key, but also send a direct transaction to the second system via ngrok.
 
 
 Scrapped ideas:
@@ -296,3 +281,6 @@ gitchain node start --data chain-a.json
 ```bash
 gitchain node start --data chain-b.json
 ```
+
+This project is a joint work of 3 people with equal contributions from each of the following:
+Abhinav Satyasheel Nikita
